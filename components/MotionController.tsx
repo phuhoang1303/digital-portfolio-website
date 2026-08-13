@@ -52,23 +52,78 @@ export function MotionController() {
       gsap.fromTo("[data-timeline-fill]", { scaleY: 0 }, { scaleY: 1, transformOrigin: "top center", ease: "none", scrollTrigger: { trigger: "#experience", start: "top 68%", end: "bottom 70%", scrub: .6 } });
 
       media.add("(min-width: 768px)", () => {
-        const shells = gsap.utils.toArray<HTMLElement>(".stack-shell");
-        shells.slice(0, -1).forEach((shell, index) => {
-          if (shell.classList.contains("stack-shell--work")) return;
-          const next = shells[index + 1];
-          const card = shell.querySelector<HTMLElement>(":scope > .section-card");
-          if (!card || !next) return;
-          gsap.to(card, { scale: .965, opacity: .76, filter: "brightness(.72)", ease: "none", scrollTrigger: { trigger: next, start: "top bottom", end: "top 3%", scrub: .55 } });
+        const rootStyle = getComputedStyle(document.documentElement);
+        const token = (name: string, fallback: number) => Number.parseFloat(rootStyle.getPropertyValue(name)) || fallback;
+        const stackTop = token("--motion-stack-top", 18);
+        const stackScale = token("--motion-stack-scale", .96);
+        const stackBrightness = token("--motion-stack-brightness", .88);
+        const stackCover = token("--motion-stack-cover", .075);
+        const stackScrub = token("--motion-stack-scrub", .48);
+        const stackCards = gsap.utils.toArray<HTMLElement>(
+          ".section-card:not(.work-card), .work-intro, .project-panel",
+        );
+
+        document.documentElement.classList.add("motion-stack-active");
+        stackCards.forEach((card, index) => {
+          card.classList.add("stack-motion-card");
+          card.style.zIndex = String(index + 10);
+          gsap.set(card, {
+            transformOrigin: "50% 0%",
+            force3D: true,
+            "--stack-cover-opacity": 0,
+          });
+
+          const nextCard = stackCards[index + 1];
+          if (!nextCard) return;
+
+          ScrollTrigger.create({
+            trigger: card,
+            start: `top top+=${stackTop}`,
+            endTrigger: nextCard,
+            end: `top top+=${stackTop}`,
+            pin: true,
+            pinSpacing: false,
+            anticipatePin: 1,
+            invalidateOnRefresh: true,
+          });
+
+          gsap.to(card, {
+            scale: stackScale,
+            filter: `brightness(${stackBrightness})`,
+            "--stack-cover-opacity": stackCover,
+            ease: "none",
+            scrollTrigger: {
+              trigger: nextCard,
+              start: "top bottom",
+              end: `top top+=${stackTop}`,
+              scrub: stackScrub,
+              invalidateOnRefresh: true,
+            },
+          });
         });
 
-        const panels = gsap.utils.toArray<HTMLElement>(".project-panel");
-        panels.slice(0, -1).forEach((panel, index) => {
-          gsap.to(panel, { scale: .972, opacity: .82, filter: "brightness(.78)", ease: "none", scrollTrigger: { trigger: panels[index + 1], start: "top bottom", end: "top 3%", scrub: .55 } });
-        });
         gsap.utils.toArray<HTMLElement>("[data-parallax]").forEach((layer) => {
           gsap.fromTo(layer, { yPercent: -4 }, { yPercent: 5, ease: "none", scrollTrigger: { trigger: layer.closest("section") ?? layer, start: "top bottom", end: "bottom top", scrub: .8 } });
         });
-        gsap.fromTo(".contact-card", { scale: .94, borderRadius: 44 }, { scale: 1, borderRadius: 22, ease: "none", scrollTrigger: { trigger: ".stack-shell--contact", start: "top bottom", end: "top 8%", scrub: .55 } });
+
+        return () => {
+          document.documentElement.classList.remove("motion-stack-active");
+          stackCards.forEach((card) => {
+            card.classList.remove("stack-motion-card");
+            card.style.removeProperty("z-index");
+          });
+        };
+      });
+
+      media.add("(max-width: 767px)", () => {
+        gsap.utils.toArray<HTMLElement>(".section-card:not(.work-card), .work-intro, .project-panel").forEach((card) => {
+          gsap.fromTo(card, { y: 16, scale: .992 }, {
+            y: 0,
+            scale: 1,
+            ease: "none",
+            scrollTrigger: { trigger: card, start: "top 98%", end: "top 78%", scrub: .25 },
+          });
+        });
       });
     });
 
